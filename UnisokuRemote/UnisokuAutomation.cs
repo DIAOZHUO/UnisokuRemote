@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Threading;
 using System.Diagnostics;
+using System.Windows.Input;
 
 
 namespace UnisokuRemote
@@ -16,6 +17,22 @@ namespace UnisokuRemote
 
     class UnisokuAutomation
     {
+        public struct POINT
+        {
+            public int x;
+            public int y;
+        }
+        [DllImport("User32.dll")]
+        static extern bool GetCursorPos(out POINT lppoint);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern bool SetCursorPos(int x, int y);
+
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        public static extern void mouse_event(int dwFlags, int dx, int dy, int cButtons, int dwExtraInfo);
+
+        public const int MOUSEEVENTF_LEFTDOWN = 0x02;
+        public const int MOUSEEVENTF_LEFTUP = 0x04;
+
         [DllImport("user32.dll", CharSet = CharSet.Unicode)]
         public static extern int MessageBox(IntPtr hWnd, String text, String caption, uint type);
 
@@ -50,6 +67,8 @@ namespace UnisokuRemote
         public IntPtr hWnd;
         AutomationElement mainForm;
         AutomationElement axis3Panel;
+        AutomationElement aSlider;
+        AutomationElement aThumb;
         InvokePattern zeroButton;
         RangeValuePattern zSlider;
 
@@ -81,6 +100,8 @@ namespace UnisokuRemote
                 var list = FindInRawView(axis3Panel);
                 foreach(var it in list)
                 {
+                    //Console.WriteLine("{0}, {1}, {2}", it.Current.Name, it.Current.ClassName, it.Current.BoundingRectangle);
+
                     if (it.Current.Name == "Zero" && it.Current.ClassName == "TButton")
                     {
                         TreeWalker tree = TreeWalker.ControlViewWalker;
@@ -91,7 +112,7 @@ namespace UnisokuRemote
                                 _zeroYBottom = it.Current.BoundingRectangle.Bottom;
                                 zeroButton = it.GetCurrentPattern(InvokePattern.Pattern) as InvokePattern;
 
-                                Console.WriteLine("!Detect Button ID:" + it.Current.AutomationId + " " + it.Current.BoundingRectangle);
+                                //Console.WriteLine("!Detect Button ID:" + it.Current.AutomationId + " " + it.Current.BoundingRectangle);
                             }
                         }
 
@@ -106,8 +127,8 @@ namespace UnisokuRemote
                             {
                                 _zSliderBottom = it.Current.BoundingRectangle.Bottom;
                                 zSlider = it.GetCurrentPattern(RangeValuePattern.Pattern) as RangeValuePattern;
-
-                                Console.WriteLine("!Detect TrackBar ID:" + it.Current.AutomationId + " " + it.Current.BoundingRectangle);
+                                aSlider = it;
+                                //Console.WriteLine("!Detect TrackBar ID:" + it.Current.AutomationId + " " + it.Current.BoundingRectangle);
                             }
                         }
                     }
@@ -119,35 +140,91 @@ namespace UnisokuRemote
                     return false;
                 }
                 //zSlider = zSliderElement.GetCurrentPattern(RangeValuePattern.Pattern) as RangeValuePattern;
-
+                
+                Console.WriteLine("change:{0},{1}", zSlider.Current.SmallChange, zSlider.Current.LargeChange);
+                var list1 = FindInRawView(aSlider);
+                foreach(var it in list1)
+                {
+                    Console.WriteLine("{0}, {1}, {2}", it.Current.Name, it.Current.ClassName, it.Current.BoundingRectangle);
+                    if (it.Current.Name == "Thumb")
+                    {
+                        //var v = Utility.Clamp<double>(zSlider.Current.Value - 10, zSlider.Current.Minimum, zSlider.Current.Maximum);
+                        //zSlider.SetValue(v);
+                        //Console.WriteLine("value:{0}", zSlider.Current.Value);
+                        //(it.GetCurrentPattern(InvokePattern.Pattern) as InvokePattern).Invoke();
+                        //Console.WriteLine("{0}", aSlider.GetClickablePoint());
+                        //LeftMouseClick((int)aSlider.GetClickablePoint().X + 50, (int)aSlider.GetClickablePoint().Y);
+                        aThumb = it;
+                        Console.WriteLine("{0}, {1}", it.Current.Name, it.Current.BoundingRectangle);
+                        zSlider.SetValue(zSlider.Current.Value);
+                        Console.WriteLine(it.GetClickablePoint());
+                    }
+                    //Console.WriteLine("{0}, {1}", it.Current.Name, it.Current.ClassName);
+                }
+                
+                
+                
                 return true;
-
-
 
             }
 
             return false;
-
-
         }
+
+
+        public static void LeftMouseClick(int xpos, int ypos)
+        {
+            SetCursorPos(xpos, ypos);
+            mouse_event(MOUSEEVENTF_LEFTDOWN, xpos, ypos, 0, 0);
+            mouse_event(MOUSEEVENTF_LEFTUP, xpos, ypos, 0, 0);
+        }
+
+        public void ClickThumb()
+        {
+            var p = new POINT();
+            GetCursorPos(out p);
+            zSlider.SetValue(zSlider.Current.Value);
+            LeftMouseClick((int)aThumb.GetClickablePoint().X, (int)aThumb.GetClickablePoint().Y);
+            SetCursorPos(p.x, p.y);
+        }
+
 
         public void MoveZLeft()
         {
+            /*
+            var p = new POINT();
+            GetCursorPos(out p);
+            zSlider.SetValue(zSlider.Current.Value);
+            Console.WriteLine("value:{0}, {1}", aSlider.Current.BoundingRectangle, aSlider.GetClickablePoint());
+            LeftMouseClick((int)aSlider.GetClickablePoint().X + ZSliderLeftBounder, (int)aSlider.GetClickablePoint().Y);
+            SetCursorPos(p.x, p.y);
+            */
+
             var v = Utility.Clamp<double>(zSlider.Current.Value - zSlider.Current.SmallChange, zSlider.Current.Minimum, zSlider.Current.Maximum);
             zSlider.SetValue(v);
-
+            ClickThumb();
         }
+
 
         public void MoveZRight()
         {
+            /*
+            var p = new POINT();
+            GetCursorPos(out p);
+            zSlider.SetValue(zSlider.Current.Value);
+            LeftMouseClick((int)aSlider.GetClickablePoint().X + (int)aSlider.Current.BoundingRectangle.Width - ZSliderRightBounder, (int)aSlider.GetClickablePoint().Y);
+            SetCursorPos(p.x, p.y);
+            */
             var v = Utility.Clamp<double>(zSlider.Current.Value + zSlider.Current.SmallChange, zSlider.Current.Minimum, zSlider.Current.Maximum);
             zSlider.SetValue(v);
+            ClickThumb();
         }
 
         public void MoveZZero()
         {
             zeroButton.Invoke();
         }
+
 
 
 
