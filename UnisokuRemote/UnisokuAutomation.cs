@@ -146,7 +146,7 @@ namespace UnisokuRemote
                 foreach(var it in list1)
                 {
                     Console.WriteLine("{0}, {1}, {2}", it.Current.Name, it.Current.ClassName, it.Current.BoundingRectangle);
-                    if (it.Current.Name == "Thumb")
+                    if (it.Current.Name == "Thumb" || it.Current.Name == "縮小表示")
                     {
                         //var v = Utility.Clamp<double>(zSlider.Current.Value - 10, zSlider.Current.Minimum, zSlider.Current.Maximum);
                         //zSlider.SetValue(v);
